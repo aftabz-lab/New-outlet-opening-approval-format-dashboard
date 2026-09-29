@@ -1162,19 +1162,61 @@
     drawCanvasText(context, `Page ${pageNumber} of ${totalPages}`, 478, 781.2, 11, false, "right", 67);
   }
 
+  function drawCanvasApprovalHeader(context, data, totalPages) {
+    const tableX = 36;
+    const tableTop = 55;
+    const tableWidth = 506;
+    const leftWidth = 254;
+    const rightWidth = tableWidth - leftWidth;
+    const referenceWidth = 160;
+    const operationsWidth = rightWidth - referenceWidth;
+    const rowHeight = 14.5;
+    const cellOptions = {
+      size: 9.5,
+      align: "left",
+      padding: 4,
+      lineWidth: 0.8,
+      minimumSize: 7.2,
+      lineGap: 1,
+    };
+
+    context.save();
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, A4[0], 128);
+    context.restore();
+
+    drawCanvasText(context, "Approval Note", 36, 23, 17, true);
+    context.save();
+    context.strokeStyle = "#000000";
+    context.lineWidth = 1.4;
+    context.beginPath();
+    context.moveTo(36, 45);
+    context.lineTo(560, 45);
+    context.moveTo(36, 48);
+    context.lineTo(560, 48);
+    context.stroke();
+    context.restore();
+
+    drawCanvasCell(context, `Date: ${data.approval.full}`, tableX, tableTop, leftWidth, rowHeight, cellOptions);
+    drawCanvasCell(context, `Dept Ref. No.: ${data.approval.reference}`, tableX + leftWidth, tableTop, referenceWidth, rowHeight, cellOptions);
+    drawCanvasCell(context, "Operations", tableX + leftWidth + referenceWidth, tableTop, operationsWidth, rowHeight, cellOptions);
+
+    drawCanvasCell(context, "Project: ACI Logistics Ltd", tableX, tableTop + rowHeight, leftWidth, rowHeight, cellOptions);
+    drawCanvasCell(context, "", tableX + leftWidth, tableTop + rowHeight, rightWidth, rowHeight, cellOptions);
+
+    drawCanvasCell(context, "To: Managing Director, ACI Logistics Limited", tableX, tableTop + rowHeight * 2, leftWidth, rowHeight, cellOptions);
+    drawCanvasCell(context, `No. of Page: ${String(totalPages).padStart(2, "0")}`, tableX + leftWidth, tableTop + rowHeight * 2, rightWidth, rowHeight, cellOptions);
+
+    return tableTop + rowHeight * 3;
+  }
+
   function renderApprovalCanvases(data, images, totalPages) {
     const amount = `${formatInteger(data.total)}/=`;
     const monthYear = `${data.monthName} ${data.year}`;
 
     const first = createPdfCanvas();
     first.context.drawImage(images.page1, 0, 0, A4[0], A4[1]);
-    drawCanvasDateField(first.context, data);
-
-    fillWhite(first.context, 357.8, 73.6, 47.4, 15.4);
-    drawCanvasText(first.context, data.approval.reference, 359.4, 75.1, 11);
-
-    fillWhite(first.context, 349.5, 103.7, 16.5, 15.2);
-    drawCanvasText(first.context, String(totalPages).padStart(2, "0"), 350.6, 105.2, 11);
+    drawCanvasApprovalHeader(first.context, data, totalPages);
 
     fillWhite(first.context, 35.2, 135.4, 525, 32.7);
     drawRichCanvas(first.context, [
@@ -1202,14 +1244,18 @@
 
     const second = createPdfCanvas();
     second.context.drawImage(images.page2, 0, 0, A4[0], A4[1]);
-    fillWhite(second.context, 35.2, 91.4, 525, 43.7);
+    fillWhite(second.context, 0, 0, A4[0], 205);
+    drawCanvasApprovalHeader(second.context, data, totalPages);
+    const recommendationTop = drawRichCanvas(second.context, [
+      { text: "This incentive disbursement is a recognition of the commendable efforts, dedication, and operational commitment demonstrated by the Operations Teams in expanding Shwapno’s retail network during the stated period despite challenging operational conditions. Management sincerely appreciates their valuable contribution and encourages continued performance excellence." },
+    ], { x: 36.1, top: 105, maxWidth: 523, size: 11, lineHeight: 13.45 }) + 2;
     drawRichCanvas(second.context, [
       { text: "In view of the above, " },
       { text: "approval for Incentive Disbursement amount of ", bold: true },
       { text: amount, bold: true },
       { text: " BDT", bold: true },
       { text: " is hereby recommended for incentive disbursement as per the details stated above and the attached appendices." },
-    ], { x: 36.1, top: 95.5, maxWidth: 523, size: 11, lineHeight: 13.45 });
+    ], { x: 36.1, top: recommendationTop, maxWidth: 523, size: 11, lineHeight: 13.45 });
 
     const aftabWidth = 69;
     const aftabHeight = aftabWidth * images.aftab.height / images.aftab.width;
@@ -1511,10 +1557,11 @@
     return cursor;
   }
 
-  function renderAppendixCanvases(data) {
+  function renderAppendixCanvases(data, totalPages) {
     const rows = enrichRhoGroups(data.detailRows);
     const page = createPdfCanvas();
-    const startTop = 36;
+    const headerBottom = drawCanvasApprovalHeader(page.context, data, totalPages);
+    const startTop = headerBottom + 13;
     const appendixBottom = 765;
     const naturalHeightA = 28 + 20 + 38 + 32 + rows.length * 15 + 17;
     const naturalHeightB = 28 + 44 + 18 + data.summaryRows.length * 14 + 18;
@@ -1584,7 +1631,7 @@
       aftab: await bytesToCanvasImage(aftabBytes),
       saiful: await bytesToCanvasImage(saifulBytes),
     };
-    const appendixCanvases = renderAppendixCanvases(generatedData);
+    const appendixCanvases = renderAppendixCanvases(generatedData, 3);
     const totalPages = 2 + appendixCanvases.length;
     appendixCanvases.forEach((page, index) => drawCanvasFooter(page.context, index + 3, totalPages));
     const approvalCanvases = renderApprovalCanvases(generatedData, images, totalPages);
