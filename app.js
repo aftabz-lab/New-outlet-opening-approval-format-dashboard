@@ -1168,8 +1168,6 @@
     const tableWidth = 506;
     const leftWidth = 254;
     const rightWidth = tableWidth - leftWidth;
-    const referenceWidth = 160;
-    const operationsWidth = rightWidth - referenceWidth;
     const rowHeight = 14.5;
     const cellOptions = {
       size: 9.5,
@@ -1198,8 +1196,7 @@
     context.restore();
 
     drawCanvasCell(context, `Date: ${data.approval.full}`, tableX, tableTop, leftWidth, rowHeight, cellOptions);
-    drawCanvasCell(context, `Dept Ref. No.: ${data.approval.reference}`, tableX + leftWidth, tableTop, referenceWidth, rowHeight, cellOptions);
-    drawCanvasCell(context, "Operations", tableX + leftWidth + referenceWidth, tableTop, operationsWidth, rowHeight, cellOptions);
+    drawCanvasCell(context, `Dept Ref. No.: ${data.approval.reference} Operations`, tableX + leftWidth, tableTop, rightWidth, rowHeight, cellOptions);
 
     drawCanvasCell(context, "Project: ACI Logistics Ltd", tableX, tableTop + rowHeight, leftWidth, rowHeight, cellOptions);
     drawCanvasCell(context, "", tableX + leftWidth, tableTop + rowHeight, rightWidth, rowHeight, cellOptions);
@@ -1248,7 +1245,7 @@
     drawCanvasApprovalHeader(second.context, data, totalPages);
     const recommendationTop = drawRichCanvas(second.context, [
       { text: "This incentive disbursement is a recognition of the commendable efforts, dedication, and operational commitment demonstrated by the Operations Teams in expanding Shwapno’s retail network during the stated period despite challenging operational conditions. Management sincerely appreciates their valuable contribution and encourages continued performance excellence." },
-    ], { x: 36.1, top: 105, maxWidth: 523, size: 11, lineHeight: 13.45 }) + 2;
+    ], { x: 36.1, top: 110, maxWidth: 523, size: 11, lineHeight: 13.45 }) + 4;
     drawRichCanvas(second.context, [
       { text: "In view of the above, " },
       { text: "approval for Incentive Disbursement amount of ", bold: true },
