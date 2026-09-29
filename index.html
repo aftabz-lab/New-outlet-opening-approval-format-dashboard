@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Generate the monthly new outlet opening approval PDF from the Operations incentive workbook.">
+  <title>New outlet opening approval format dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="https://aftabz-lab.github.io" aria-label="Shwapno dashboard home">
+      <span class="brand-mark" aria-hidden="true">S</span>
+      <span class="brand-copy">
+        <strong>SHWAPNO</strong>
+        <small>OPERATIONS INTELLIGENCE</small>
+      </span>
+    </a>
+    <button class="btn btn-quiet" id="themeToggle" type="button" aria-label="Switch colour theme">
+      <span aria-hidden="true" id="themeIcon">☀</span>
+      <span id="themeLabel">Light mode</span>
+    </button>
+  </header>
+
+  <main class="shell">
+    <section class="intro" aria-labelledby="pageTitle">
+      <p class="section-label">New outlet opening</p>
+      <h1 id="pageTitle">New outlet opening approval format dashboard</h1>
+      <p class="intro-copy">Select the monthly incentive Excel file. The dashboard will read the reporting month, totals, Appendix A and Appendix B, then download the completed approval PDF with the default Aftab and Saiful signatures.</p>
+    </section>
+
+    <section class="panel workflow-panel" aria-labelledby="workflowTitle">
+      <div class="panel-head">
+        <div>
+          <h2 id="workflowTitle">Generate approval PDF</h2>
+          <p>The Excel filename may change. Processing stays inside this browser.</p>
+        </div>
+        <span class="chip chip-idle" id="fileStateChip">No file selected</span>
+      </div>
+
+      <div class="panel-body">
+        <div class="upload-grid">
+          <div class="drop-zone" id="dropZone">
+            <input id="fileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <div class="upload-icon" aria-hidden="true">↑</div>
+            <h3>Monthly Excel source</h3>
+            <p>Use the workbook containing the outlet detail sheet and Summary sheet.</p>
+            <button class="btn" id="selectFileButton" type="button">Select File from Device</button>
+            <p class="file-name" id="fileName">No Excel file selected</p>
+          </div>
+
+          <div class="instructions" aria-label="How this works">
+            <ol>
+              <li><span>1</span><div><strong>Select the workbook</strong><small>Any .xlsx filename is accepted.</small></div></li>
+              <li><span>2</span><div><strong>Review the detected totals</strong><small>The detail and Summary totals must match.</small></div></li>
+              <li><span>3</span><div><strong>Generate the PDF</strong><small>The completed file downloads automatically.</small></div></li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="status" id="status" role="status" aria-live="polite">
+          Select an Excel file to begin.
+        </div>
+
+        <div class="summary-grid" id="summaryGrid" aria-live="polite">
+          <article class="kpi">
+            <span>Reporting month</span>
+            <strong id="summaryMonth">—</strong>
+            <small>Detected from workbook title or dates</small>
+          </article>
+          <article class="kpi">
+            <span>New outlets</span>
+            <strong id="summaryOutlets">—</strong>
+            <small>Rows included in Appendix A</small>
+          </article>
+          <article class="kpi">
+            <span>Recipients</span>
+            <strong id="summaryRecipients">—</strong>
+            <small>Rows included in Appendix B</small>
+          </article>
+          <article class="kpi">
+            <span>Total incentive</span>
+            <strong id="summaryTotal">—</strong>
+            <small>Checked across both appendices</small>
+          </article>
+        </div>
+
+        <div class="action-row">
+          <div>
+            <p class="action-title">Approval date</p>
+            <p class="action-value" id="approvalDate">Derived after file selection</p>
+          </div>
+          <button class="btn btn-primary" id="generateButton" type="button" disabled>
+            New outlet opening approval Generate
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel details-panel" aria-labelledby="includedTitle">
+      <div class="panel-head">
+        <div>
+          <h2 id="includedTitle">Included in the PDF</h2>
+          <p>The approval note remains fixed except for the workbook-driven fields.</p>
+        </div>
+      </div>
+      <div class="panel-body included-grid">
+        <div><strong>Approval note</strong><span>Date, reference, month and total update automatically.</span></div>
+        <div><strong>Appendix A</strong><span>Outlet, team member, zonal, RHO and Assistant Director amounts.</span></div>
+        <div><strong>Appendix B</strong><span>Recipient name, ID, designation and incentive amount.</span></div>
+        <div><strong>Default signatures</strong><span>Md. Aftab Ul Islam and Saiful Alam Rasel are inserted automatically.</span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>ACI Logistics Limited</span>
+    <span>Approval PDF generator</span>
+  </footer>
+
+  <script src="assets/jszip.min.js"></script>
+  <script src="assets/pdf-lib.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
