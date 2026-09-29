@@ -118,13 +118,41 @@
     return "th";
   }
 
-  function approvalDateParts(year, monthIndex) {
-    const date = new Date(Date.UTC(year, monthIndex + 1, 3));
-    const day = date.getUTCDate();
-    const month = MONTHS[date.getUTCMonth()];
-    const full = `${String(day).padStart(2, "0")}${ordinalSuffix(day)} ${month} ${date.getUTCFullYear()}`;
-    const reference = `${String(day).padStart(2, "0")}${String(date.getUTCMonth() + 1).padStart(2, "0")}${date.getUTCFullYear()}`;
-    return { date, day, month, year: date.getUTCFullYear(), full, reference };
+  function approvalDateParts(now = new Date()) {
+    const date = new Date(now);
+    const day = date.getDate();
+    const monthIndex = date.getMonth();
+    const year = date.getFullYear();
+    const month = MONTHS[monthIndex];
+    const full = `${String(day).padStart(2, "0")}${ordinalSuffix(day)} ${month} ${year}`;
+    const reference = `${String(day).padStart(2, "0")}${String(monthIndex + 1).padStart(2, "0")}${year}`;
+    return { date, day, month, year, full, reference };
+  }
+
+  function isSaifulAlam(row) {
+    const name = normalizeText(row.name);
+    return row.id === "7442" || (name.includes("saiful") && (name.includes("alam") || name.includes("rasel")));
+  }
+
+  function appendixBSortRank(row) {
+    if (isSaifulAlam(row)) return 0;
+    const designation = normalizeText(row.designation);
+    if (/\brho\b/.test(designation) || designation.includes("regional head")) return 1;
+    if (designation.includes("zonal")) return 2;
+    return 3;
+  }
+
+  function sortAppendixBRows(rows, includeAssistant) {
+    return rows
+      .filter((row) => includeAssistant || !isSaifulAlam(row))
+      .sort((left, right) => {
+        const groupDifference = appendixBSortRank(left) - appendixBSortRank(right);
+        if (groupDifference) return groupDifference;
+        const amountDifference = right.amount - left.amount;
+        if (amountDifference) return amountDifference;
+        return left.sl - right.sl;
+      })
+      .map((row, index) => ({ ...row, sl: index + 1 }));
   }
 
   function parseXml(source, label) {
@@ -413,15 +441,20 @@
     const period = detectPeriod(workbook, detailRows);
     const monthName = MONTHS[period.monthIndex];
     const monthShort = MONTH_SHORT[period.monthIndex];
-    const approval = approvalDateParts(period.year, period.monthIndex);
+    const approval = approvalDateParts();
+    const assistantTotal = detailRows.reduce((sum, row) => sum + row.assistantAmount, 0);
+    const includeAssistant = assistantTotal > 0.5;
+    const orderedSummaryRows = sortAppendixBRows(summaryRows, includeAssistant);
     const detailTotal = detailRows.reduce((sum, row) => sum + row.teamAmount + row.zonalAmount + row.rhoAmount + row.assistantAmount, 0);
-    const summaryTotal = summaryRows.reduce((sum, row) => sum + row.amount, 0);
+    const summaryTotal = orderedSummaryRows.reduce((sum, row) => sum + row.amount, 0);
     const difference = Math.abs(detailTotal - summaryTotal);
 
     return {
       detailRows,
-      summaryRows,
+      summaryRows: orderedSummaryRows,
       assistantLabel,
+      assistantTotal,
+      includeAssistant,
       detailTotal,
       summaryTotal,
       difference,
@@ -594,10 +627,7 @@
     const tail = ` ${data.approval.month} ${data.approval.year}`;
     const dayWidth = fonts.regular.widthOfTextAtSize(dayText, 11);
     const suffixWidth = fonts.regular.widthOfTextAtSize(suffix, 6.4);
-    const tailWidth = fonts.regular.widthOfTextAtSize(tail, 11);
-    const totalWidth = dayWidth + suffixWidth + tailWidth;
     coverTop(page, 66.3, 72.7, 111, 18.2, colors.white);
-    page.drawRectangle({ x: x - 0.8, y: topToY(page, 73.9, 14.2), width: totalWidth + 1.6, height: 14.2, color: colors.yellow });
     textTop(page, dayText, x, top + 1.2, 11, fonts.regular, colors.black);
     textTop(page, suffix, x + dayWidth, top - 0.3, 6.4, fonts.regular, colors.black);
     textTop(page, tail, x + dayWidth + suffixWidth, top + 1.2, 11, fonts.regular, colors.black);
@@ -612,41 +642,39 @@
     drawDateField(page1, data, fonts, colors);
 
     coverTop(page1, 357.8, 72.7, 47.4, 18.2, colors.white);
-    const refWidth = fonts.regular.widthOfTextAtSize(data.approval.reference, 11);
-    page1.drawRectangle({ x: 358.8, y: topToY(page1, 73.9, 14.2), width: refWidth + 1.6, height: 14.2, color: colors.yellow });
     textTop(page1, data.approval.reference, 359.4, 75.3, 11, fonts.regular, colors.black);
 
     coverTop(page1, 35.2, 134.4, 525, 34.8, colors.white);
     drawRichWrappedText(page1, [
       { text: "SUBJECT: Approval for Incentive Disbursement amount of ", font: fonts.bold },
-      { text: amount, font: fonts.bold, highlight: true },
+      { text: amount, font: fonts.bold },
       { text: " BDT to Operations Team for New Outlet Opening ", font: fonts.bold },
-      { text: `(${monthYear})`, font: fonts.bold, highlight: true },
+      { text: `(${monthYear})`, font: fonts.bold },
       { text: ".", font: fonts.bold },
-    ], { x: 36.1, top: 138.5, maxWidth: 523, size: 11, lineHeight: 14.5, color: colors.black, highlightColor: colors.yellow });
+    ], { x: 36.1, top: 138.5, maxWidth: 523, size: 11, lineHeight: 14.5, color: colors.black });
 
     coverTop(page1, 35.2, 177.7, 525, 59, colors.white);
     drawRichWrappedText(page1, [
       { text: "In accordance with the approved incentive policy for motivating and strengthening the ongoing expansion initiatives of the Operations Departments, the performance and eligibility for incentive disbursement for the month of ", font: fonts.regular },
-      { text: monthYear, font: fonts.regular, highlight: true },
+      { text: monthYear, font: fonts.regular },
       { text: " have been reviewed, verified, and evaluated as per the approved guidelines and supporting details enclosed in Appendix-A & B.", font: fonts.regular },
-    ], { x: 36.1, top: 181.8, maxWidth: 523, size: 11, lineHeight: 13.45, color: colors.black, highlightColor: colors.yellow });
+    ], { x: 36.1, top: 181.8, maxWidth: 523, size: 11, lineHeight: 13.45, color: colors.black });
 
     coverTop(page1, 35.2, 728.8, 525, 35, colors.white);
     drawRichWrappedText(page1, [
       { text: "The approved incentive amounts shall be disbursed among the eligible employees listed in Appendix-A and B including the associate team for ", font: fonts.regular },
-      { text: `${data.monthName} -${data.year}`, font: fonts.regular, highlight: true },
+      { text: `${data.monthName} -${data.year}`, font: fonts.regular },
       { text: ", through MFS/bank transfer.", font: fonts.regular },
-    ], { x: 36.1, top: 733.2, maxWidth: 523, size: 11, lineHeight: 13.45, color: colors.black, highlightColor: colors.yellow });
+    ], { x: 36.1, top: 733.2, maxWidth: 523, size: 11, lineHeight: 13.45, color: colors.black });
 
     coverTop(page2, 35.2, 92.0, 525, 43.5, colors.white);
     drawRichWrappedText(page2, [
       { text: "In view of the above, ", font: fonts.regular },
       { text: "approval for Incentive Disbursement amount of ", font: fonts.bold },
-      { text: amount, font: fonts.bold, highlight: true },
+      { text: amount, font: fonts.bold },
       { text: " BDT", font: fonts.bold },
       { text: " is hereby recommended for incentive disbursement as per the details stated above and the attached appendices.", font: fonts.regular },
-    ], { x: 36.1, top: 96.0, maxWidth: 523, size: 11, lineHeight: 13.45, color: colors.black, highlightColor: colors.yellow });
+    ], { x: 36.1, top: 96.0, maxWidth: 523, size: 11, lineHeight: 13.45, color: colors.black });
 
     const aftabWidth = 69;
     const aftabHeight = aftabWidth * signatures.aftab.height / signatures.aftab.width;
@@ -734,7 +762,6 @@
     const text = continuation ? `${label} (continued)` : label;
     const size = 16;
     const width = fonts.bold.widthOfTextAtSize(text, size);
-    page.drawRectangle({ x: 36, y: topToY(page, top - 1, size + 6), width: width + 3, height: size + 6, color: colors.yellow });
     textTop(page, text, 36, top, size, fonts.bold, colors.black);
     page.drawLine({ start: { x: 36, y: topToY(page, top + size + 1) }, end: { x: 36 + width, y: topToY(page, top + size + 1) }, thickness: 0.8, color: colors.black });
     return top + 28;
@@ -1084,13 +1111,11 @@
     let cursorX = x;
     let lineTop = top;
     let pendingSpace = 0;
-    let pendingHighlight = false;
 
     const nextLine = () => {
       cursorX = x;
       lineTop += lineHeight;
       pendingSpace = 0;
-      pendingHighlight = false;
     };
 
     segments.forEach((segment) => {
@@ -1104,27 +1129,15 @@
         }
         if (/^\s+$/.test(token)) {
           pendingSpace = context.measureText(" ").width;
-          pendingHighlight = Boolean(segment.highlight);
           return;
         }
         const tokenWidth = context.measureText(token).width;
         if (cursorX > x && cursorX + pendingSpace + tokenWidth > x + maxWidth) nextLine();
-        if (pendingSpace && cursorX > x) {
-          if (pendingHighlight) {
-            context.fillStyle = "#ffff00";
-            context.fillRect(cursorX, lineTop - 0.5, pendingSpace, segmentSize + 2.5);
-          }
-          cursorX += pendingSpace;
-        }
-        if (segment.highlight) {
-          context.fillStyle = "#ffff00";
-          context.fillRect(cursorX - 0.7, lineTop - 0.5, tokenWidth + 1.4, segmentSize + 2.5);
-        }
+        if (pendingSpace && cursorX > x) cursorX += pendingSpace;
         context.fillStyle = "#000000";
         context.fillText(token, cursorX, lineTop);
         cursorX += tokenWidth;
         pendingSpace = 0;
-        pendingHighlight = false;
       });
     });
     return lineTop + lineHeight;
@@ -1139,9 +1152,6 @@
     fillWhite(context, 66.4, 73.6, 110, 15.4);
     const dayWidth = canvasTextWidth(context, dayText, 11);
     const suffixWidth = canvasTextWidth(context, suffix, 6.4);
-    const tailWidth = canvasTextWidth(context, tail, 11);
-    context.fillStyle = "#ffff00";
-    context.fillRect(x - 0.7, top - 0.4, dayWidth + suffixWidth + tailWidth + 1.4, 13.8);
     drawCanvasText(context, dayText, x, top, 11);
     drawCanvasText(context, suffix, x + dayWidth, top - 1.5, 6.4);
     drawCanvasText(context, tail, x + dayWidth + suffixWidth, top, 11);
@@ -1161,9 +1171,6 @@
     drawCanvasDateField(first.context, data);
 
     fillWhite(first.context, 357.8, 73.6, 47.4, 15.4);
-    const refWidth = canvasTextWidth(first.context, data.approval.reference, 11);
-    first.context.fillStyle = "#ffff00";
-    first.context.fillRect(358.8, 74.8, refWidth + 1.4, 13.8);
     drawCanvasText(first.context, data.approval.reference, 359.4, 75.1, 11);
 
     fillWhite(first.context, 349.5, 103.7, 16.5, 15.2);
@@ -1172,23 +1179,23 @@
     fillWhite(first.context, 35.2, 135.4, 525, 32.7);
     drawRichCanvas(first.context, [
       { text: "SUBJECT: Approval for Incentive Disbursement amount of ", bold: true },
-      { text: amount, bold: true, highlight: true },
+      { text: amount, bold: true },
       { text: " BDT to Operations Team for New Outlet Opening ", bold: true },
-      { text: `(${monthYear})`, bold: true, highlight: true },
+      { text: `(${monthYear})`, bold: true },
       { text: ".", bold: true },
     ], { x: 36.1, top: 138.2, maxWidth: 523, size: 11, lineHeight: 14.5 });
 
     fillWhite(first.context, 35.2, 178.6, 525, 57.3);
     drawRichCanvas(first.context, [
       { text: "In accordance with the approved incentive policy for motivating and strengthening the ongoing expansion initiatives of the Operations Departments, the performance and eligibility for incentive disbursement for the month of " },
-      { text: monthYear, highlight: true },
+      { text: monthYear },
       { text: " have been reviewed, verified, and evaluated as per the approved guidelines and supporting details enclosed in Appendix-A & B." },
     ], { x: 36.1, top: 181.4, maxWidth: 523, size: 11, lineHeight: 13.45 });
 
     fillWhite(first.context, 35.2, 729.5, 525, 33.1);
     drawRichCanvas(first.context, [
       { text: "The approved incentive amounts shall be disbursed among the eligible employees listed in Appendix-A and B including the associate team for " },
-      { text: `${data.monthName} -${data.year}`, highlight: true },
+      { text: `${data.monthName} -${data.year}` },
       { text: ", through MFS/bank transfer." },
     ], { x: 36.1, top: 732.7, maxWidth: 523, size: 11, lineHeight: 13.45 });
     drawCanvasFooter(first.context, 1, totalPages);
@@ -1199,7 +1206,7 @@
     drawRichCanvas(second.context, [
       { text: "In view of the above, " },
       { text: "approval for Incentive Disbursement amount of ", bold: true },
-      { text: amount, bold: true, highlight: true },
+      { text: amount, bold: true },
       { text: " BDT", bold: true },
       { text: " is hereby recommended for incentive disbursement as per the details stated above and the attached appendices." },
     ], { x: 36.1, top: 95.5, maxWidth: 523, size: 11, lineHeight: 13.45 });
@@ -1217,8 +1224,9 @@
 
   function fitCanvasTextSize(context, text, preferred, maxWidth, bold = false, minimum = 4.8) {
     let size = preferred;
-    while (size > minimum && canvasTextWidth(context, text, size, bold) > maxWidth) size -= 0.2;
-    return Math.max(minimum, size);
+    const floor = Math.min(preferred, minimum);
+    while (size > floor && canvasTextWidth(context, text, size, bold) > maxWidth) size -= 0.2;
+    return Math.max(floor, size);
   }
 
   function canvasWrappedLines(context, text, size, maxWidth, bold = false, maxLines = 3) {
@@ -1253,7 +1261,8 @@
   function drawCanvasCell(context, value, x, top, width, height, options) {
     const {
       size = 7, bold = false, align = "left", padding = 2.2,
-      wrap = false, maxLines = 3, lineWidth = 0.55,
+      wrap = false, maxLines = 3, lineWidth = 0.55, lineGap = 1.4,
+      minimumSize = Math.min(4.8, size),
     } = options;
     context.save();
     context.fillStyle = "#ffffff";
@@ -1272,12 +1281,12 @@
     if (wrap) {
       lines = canvasWrappedLines(context, text, actualSize, Math.max(1, width - padding * 2), bold, maxLines);
     } else {
-      actualSize = fitCanvasTextSize(context, text, actualSize, Math.max(1, width - padding * 2), bold);
+      actualSize = fitCanvasTextSize(context, text, actualSize, Math.max(1, width - padding * 2), bold, minimumSize);
       lines = [text];
     }
     canvasFont(context, actualSize, bold);
-    const lineHeight = actualSize + 1.4;
-    const blockHeight = lines.length * lineHeight - 1.4;
+    const lineHeight = actualSize + lineGap;
+    const blockHeight = lines.length * lineHeight - lineGap;
     let lineTop = top + (height - blockHeight) / 2;
     context.beginPath();
     context.rect(x + 0.3, top + 0.3, width - 0.6, height - 0.6);
@@ -1294,12 +1303,10 @@
     context.restore();
   }
 
-  function drawCanvasAppendixHeading(context, label, continuation, top = 36) {
+  function drawCanvasAppendixHeading(context, label, continuation, top = 36, scale = 1) {
     const text = continuation ? `${label} (continued)` : label;
-    const size = 16;
+    const size = Math.max(6, 16 * scale);
     const width = canvasTextWidth(context, text, size, true);
-    context.fillStyle = "#ffff00";
-    context.fillRect(36, top - 1, width + 3, size + 6);
     drawCanvasText(context, text, 36, top, size, true);
     context.strokeStyle = "#000000";
     context.lineWidth = 0.8;
@@ -1307,22 +1314,31 @@
     context.moveTo(36, top + size + 1);
     context.lineTo(36 + width, top + size + 1);
     context.stroke();
-    return top + 28;
+    return top + 28 * scale;
   }
 
-  function drawCanvasAppendixAChunk(context, data, rows, top, isLast) {
+  function drawCanvasAppendixAChunk(context, data, rows, top, isLast, layout = {}) {
+    const scale = layout.scale || 1;
+    const includeAssistant = Boolean(data.includeAssistant);
     const x = 21;
-    const widths = [16, 48, 31, 89, 62, 36, 67, 36, 70, 24, 35, 39];
+    const widths = includeAssistant
+      ? [16, 48, 31, 89, 62, 36, 67, 36, 70, 24, 35, 39]
+      : [16, 48, 31, 99, 69, 36, 74, 36, 79, 24, 41];
     const totalWidth = widths.reduce((sum, value) => sum + value, 0);
-    const rowHeight = 15;
-    const titleHeight = 20;
-    const groupHeight = 38;
-    const headerHeight = 32;
-    const totalHeight = 17;
+    const rowHeight = 15 * scale;
+    const titleHeight = 20 * scale;
+    const groupHeight = 38 * scale;
+    const headerHeight = 32 * scale;
+    const totalHeight = 17 * scale;
+    const padding = Math.max(0.55, 2.2 * scale);
+    const lineGap = Math.max(0.3, 1.4 * scale);
+    const lineWidth = Math.max(0.2, 0.55 * scale);
+    const cellOptions = { padding, lineGap, lineWidth, minimumSize: 2.5 };
+    const scaledSize = (size, minimum = 2.8) => Math.max(minimum, size * scale);
     let cursor = top;
 
     drawCanvasCell(context, `Total Incentive Summary For New Outlet Opening of Operations : ${data.monthShort}-${data.year}`, x, cursor, totalWidth, titleHeight, {
-      bold: true, size: 9.2, align: "left", padding: 2.4,
+      ...cellOptions, bold: true, size: scaledSize(9.2, 4), align: "left", padding: Math.max(0.7, 2.4 * scale),
     });
     cursor += titleHeight;
 
@@ -1331,25 +1347,32 @@
       { label: "Outlet Team Member", start: 4, span: 2 },
       { label: "Zonal Manager", start: 6, span: 2 },
       { label: "RHO", start: 8, span: 3 },
-      { label: data.assistantLabel, start: 11, span: 1 },
     ];
+    if (includeAssistant) groups.push({ label: data.assistantLabel, start: 11, span: 1 });
     groups.forEach((group) => {
       const groupX = x + widths.slice(0, group.start).reduce((sum, value) => sum + value, 0);
       const groupWidth = widths.slice(group.start, group.start + group.span).reduce((sum, value) => sum + value, 0);
+      const isAssistant = group.start === 11;
       drawCanvasCell(context, group.label, groupX, cursor, groupWidth, groupHeight, {
-        bold: true, size: group.start === 11 ? 5.6 : 8.2, align: "center", wrap: true, maxLines: group.start === 11 ? 5 : 3,
+        ...cellOptions,
+        bold: true,
+        size: scaledSize(isAssistant ? 5.6 : 8.2, isAssistant ? 2.8 : 3.4),
+        align: "center",
+        wrap: true,
+        maxLines: isAssistant ? 5 : 3,
       });
     });
     cursor += groupHeight;
 
     const headers = [
       "SL", "Inauguration Date", "Code", "Outlet Name", "Outlet Team Member", "Incentive Amount",
-      "Zonal Name", "Incentive Amount", "Expansion By", "Outlet Quantity", "Incentive Amount", "Incentive Amount",
+      "Zonal Name", "Incentive Amount", "Expansion By", "Outlet Quantity", "Incentive Amount",
     ];
+    if (includeAssistant) headers.push("Incentive Amount");
     let headerX = x;
     headers.forEach((header, index) => {
       drawCanvasCell(context, header, headerX, cursor, widths[index], headerHeight, {
-        bold: true, size: 6.6, align: "center", wrap: true, maxLines: 3,
+        ...cellOptions, bold: true, size: scaledSize(6.6, 3), align: "center", wrap: true, maxLines: 3,
       });
       headerX += widths[index];
     });
@@ -1369,13 +1392,18 @@
       let cellX = x;
       values.forEach((value, index) => {
         drawCanvasCell(context, value, cellX, cursor, widths[index], rowHeight, {
-          size: index === 3 || index === 4 || index === 6 ? 6.1 : 6.5,
+          ...cellOptions,
+          size: scaledSize(index === 3 || index === 4 || index === 6 ? 6.1 : 6.5, 2.7),
           align: [0, 1, 2, 5, 7].includes(index) ? "center" : "left",
         });
         cellX += widths[index];
       });
-      const assistantX = x + widths.slice(0, 11).reduce((sum, value) => sum + value, 0);
-      drawCanvasCell(context, formatInteger(row.assistantAmount), assistantX, cursor, widths[11], rowHeight, { size: 6.5, align: "center" });
+      if (includeAssistant) {
+        const assistantX = x + widths.slice(0, 11).reduce((sum, value) => sum + value, 0);
+        drawCanvasCell(context, formatInteger(row.assistantAmount), assistantX, cursor, widths[11], rowHeight, {
+          ...cellOptions, size: scaledSize(6.5, 2.7), align: "center",
+        });
+      }
       cursor += rowHeight;
     });
 
@@ -1388,9 +1416,15 @@
       const spanHeight = (groupEnd - groupStart) * rowHeight;
       const groupTop = top + titleHeight + groupHeight + headerHeight + groupStart * rowHeight;
       const group = rows[groupStart].rhoGroup;
-      drawCanvasCell(context, group.name, rhoX, groupTop, widths[8], spanHeight, { size: 6.2, align: "center", wrap: true, maxLines: 3 });
-      drawCanvasCell(context, group.quantity ? formatInteger(group.quantity) : "", rhoX + widths[8], groupTop, widths[9], spanHeight, { size: 6.5, align: "center" });
-      drawCanvasCell(context, formatInteger(group.amount), rhoX + widths[8] + widths[9], groupTop, widths[10], spanHeight, { size: 6.5, align: "center" });
+      drawCanvasCell(context, group.name, rhoX, groupTop, widths[8], spanHeight, {
+        ...cellOptions, size: scaledSize(6.2, 2.7), align: "center", wrap: true, maxLines: 3,
+      });
+      drawCanvasCell(context, group.quantity ? formatInteger(group.quantity) : "", rhoX + widths[8], groupTop, widths[9], spanHeight, {
+        ...cellOptions, size: scaledSize(6.5, 2.7), align: "center",
+      });
+      drawCanvasCell(context, formatInteger(group.amount), rhoX + widths[8] + widths[9], groupTop, widths[10], spanHeight, {
+        ...cellOptions, size: scaledSize(6.5, 2.7), align: "center",
+      });
       groupStart = groupEnd;
     }
 
@@ -1407,12 +1441,14 @@
         { value: "Grand Total", span: 4 }, { value: "", span: 1 }, { value: formatInteger(totals.team), span: 1 },
         { value: "", span: 1 }, { value: formatInteger(totals.zonal), span: 1 }, { value: "", span: 1 },
         { value: formatInteger(totals.quantity), span: 1 }, { value: formatInteger(totals.rho), span: 1 },
-        { value: formatInteger(totals.assistant), span: 1 },
       ];
+      if (includeAssistant) totalCells.push({ value: formatInteger(totals.assistant), span: 1 });
       let widthCursor = 0;
       totalCells.forEach((cell) => {
         const cellWidth = widths.slice(widthCursor, widthCursor + cell.span).reduce((sum, value) => sum + value, 0);
-        drawCanvasCell(context, cell.value, totalX, cursor, cellWidth, totalHeight, { bold: true, size: 7, align: "center" });
+        drawCanvasCell(context, cell.value, totalX, cursor, cellWidth, totalHeight, {
+          ...cellOptions, bold: true, size: scaledSize(7, 3), align: "center",
+        });
         totalX += cellWidth;
         widthCursor += cell.span;
       });
@@ -1421,23 +1457,31 @@
     return cursor;
   }
 
-  function drawCanvasAppendixBChunk(context, data, rows, top, isLast) {
+  function drawCanvasAppendixBChunk(context, data, rows, top, isLast, layout = {}) {
+    const scale = layout.scale || 1;
     const x = 36;
     const widths = [28, 195, 48, 170, 82];
     const totalWidth = widths.reduce((sum, value) => sum + value, 0);
-    const titleHeight = 44;
-    const headerHeight = 18;
-    const rowHeight = 14;
-    const totalHeight = 18;
+    const titleHeight = 44 * scale;
+    const headerHeight = 18 * scale;
+    const rowHeight = 14 * scale;
+    const totalHeight = 18 * scale;
+    const padding = Math.max(0.55, 2.2 * scale);
+    const lineGap = Math.max(0.3, 1.4 * scale);
+    const lineWidth = Math.max(0.2, 0.55 * scale);
+    const cellOptions = { padding, lineGap, lineWidth, minimumSize: 2.5 };
+    const scaledSize = (size, minimum = 2.8) => Math.max(minimum, size * scale);
     let cursor = top;
     drawCanvasCell(context, `Total Incentive Summary For New Outlet Opening of Operations :\n${data.monthName}-${data.year}`, x, cursor, totalWidth, titleHeight, {
-      bold: true, size: 13, align: "center", wrap: true, maxLines: 2,
+      ...cellOptions, bold: true, size: scaledSize(13, 5), align: "center", wrap: true, maxLines: 2,
     });
     cursor += titleHeight;
     const headers = ["SL", "Expansion By", "ID", "Designation", "Incentive Amount"];
     let headerX = x;
     headers.forEach((header, index) => {
-      drawCanvasCell(context, header, headerX, cursor, widths[index], headerHeight, { bold: true, size: 9.2, align: "center" });
+      drawCanvasCell(context, header, headerX, cursor, widths[index], headerHeight, {
+        ...cellOptions, bold: true, size: scaledSize(9.2, 3.6), align: "center",
+      });
       headerX += widths[index];
     });
     cursor += headerHeight;
@@ -1446,7 +1490,8 @@
       let cellX = x;
       values.forEach((value, index) => {
         drawCanvasCell(context, value, cellX, cursor, widths[index], rowHeight, {
-          size: index === 1 || index === 3 ? 8.2 : 8.5,
+          ...cellOptions,
+          size: scaledSize(index === 1 || index === 3 ? 8.2 : 8.5, 3.2),
           align: index === 1 ? "left" : "center",
         });
         cellX += widths[index];
@@ -1455,68 +1500,35 @@
     });
     if (isLast) {
       const labelWidth = widths.slice(0, 4).reduce((sum, value) => sum + value, 0);
-      drawCanvasCell(context, "Grand Total", x, cursor, labelWidth, totalHeight, { bold: true, size: 13, align: "center" });
-      drawCanvasCell(context, formatInteger(data.total), x + labelWidth, cursor, widths[4], totalHeight, { bold: true, size: 13, align: "center" });
+      drawCanvasCell(context, "Grand Total", x, cursor, labelWidth, totalHeight, {
+        ...cellOptions, bold: true, size: scaledSize(13, 4.5), align: "center",
+      });
+      drawCanvasCell(context, formatInteger(data.total), x + labelWidth, cursor, widths[4], totalHeight, {
+        ...cellOptions, bold: true, size: scaledSize(13, 4.5), align: "center",
+      });
       cursor += totalHeight;
     }
     return cursor;
   }
 
   function renderAppendixCanvases(data) {
-    const pages = [];
     const rows = enrichRhoGroups(data.detailRows);
-    const rowHeightA = 15;
-    const fixedANoTotal = 20 + 38 + 32;
-    const totalAHeight = 17;
-    let rowCursor = 0;
-    let currentPage = null;
-    let top = 36;
-    let pageIndex = 0;
+    const page = createPdfCanvas();
+    const startTop = 36;
+    const appendixBottom = 765;
+    const naturalHeightA = 28 + 20 + 38 + 32 + rows.length * 15 + 17;
+    const naturalHeightB = 28 + 44 + 18 + data.summaryRows.length * 14 + 18;
+    const naturalGap = 14;
+    const naturalTotal = naturalHeightA + naturalGap + naturalHeightB;
+    const scale = Math.min(1, (appendixBottom - startTop) / naturalTotal);
+    const layout = { scale };
 
-    while (rowCursor < rows.length) {
-      currentPage = createPdfCanvas();
-      pages.push(currentPage);
-      top = drawCanvasAppendixHeading(currentPage.context, "Appendix-A", pageIndex > 0, 36);
-      const remaining = rows.length - rowCursor;
-      const capacityWithTotal = Math.max(1, Math.floor((PAGE_BOTTOM - top - fixedANoTotal - totalAHeight) / rowHeightA));
-      const capacityWithoutTotal = Math.max(1, Math.floor((PAGE_BOTTOM - top - fixedANoTotal) / rowHeightA));
-      const isLast = remaining <= capacityWithTotal;
-      const count = isLast ? remaining : Math.min(remaining, capacityWithoutTotal);
-      top = drawCanvasAppendixAChunk(currentPage.context, data, rows.slice(rowCursor, rowCursor + count), top, isLast);
-      rowCursor += count;
-      pageIndex += 1;
-    }
-
-    const rowHeightB = 14;
-    const fixedBNoTotal = 44 + 18;
-    const totalBHeight = 18;
-    let summaryCursor = 0;
-    let continuation = false;
-    top += 14;
-    const fullBHeight = estimatedAppendixBHeight(data.summaryRows.length, true);
-    if (!currentPage || top + fullBHeight > PAGE_BOTTOM) {
-      currentPage = createPdfCanvas();
-      pages.push(currentPage);
-      top = 36;
-    }
-
-    while (summaryCursor < data.summaryRows.length) {
-      top = drawCanvasAppendixHeading(currentPage.context, "Appendix-B", continuation, top);
-      const remaining = data.summaryRows.length - summaryCursor;
-      const capacityWithTotal = Math.max(1, Math.floor((PAGE_BOTTOM - top - fixedBNoTotal - totalBHeight) / rowHeightB));
-      const capacityWithoutTotal = Math.max(1, Math.floor((PAGE_BOTTOM - top - fixedBNoTotal) / rowHeightB));
-      const isLast = remaining <= capacityWithTotal;
-      const count = isLast ? remaining : Math.min(remaining, capacityWithoutTotal);
-      top = drawCanvasAppendixBChunk(currentPage.context, data, data.summaryRows.slice(summaryCursor, summaryCursor + count), top, isLast);
-      summaryCursor += count;
-      if (summaryCursor < data.summaryRows.length) {
-        currentPage = createPdfCanvas();
-        pages.push(currentPage);
-        top = 36;
-        continuation = true;
-      }
-    }
-    return pages;
+    let top = drawCanvasAppendixHeading(page.context, "Appendix-A", false, startTop, scale);
+    top = drawCanvasAppendixAChunk(page.context, data, rows, top, true, layout);
+    top += naturalGap * scale;
+    top = drawCanvasAppendixHeading(page.context, "Appendix-B", false, top, scale);
+    drawCanvasAppendixBChunk(page.context, data, data.summaryRows, top, true, layout);
+    return [page];
   }
 
   async function bytesToCanvasImage(bytes) {
@@ -1557,6 +1569,7 @@
   async function buildPdf(data) {
     if (!window.PDFLib) throw new Error("The PDF generator did not load.");
     const { PDFDocument } = window.PDFLib;
+    const generatedData = { ...data, approval: approvalDateParts() };
     const [templatePage1Bytes, templatePage2Bytes, aftabBytes, saifulBytes] = await Promise.all([
       assetBytes("assets/approval-template-page-1.png"),
       assetBytes("assets/approval-template-page-2.png"),
@@ -1571,10 +1584,10 @@
       aftab: await bytesToCanvasImage(aftabBytes),
       saiful: await bytesToCanvasImage(saifulBytes),
     };
-    const appendixCanvases = renderAppendixCanvases(data);
+    const appendixCanvases = renderAppendixCanvases(generatedData);
     const totalPages = 2 + appendixCanvases.length;
     appendixCanvases.forEach((page, index) => drawCanvasFooter(page.context, index + 3, totalPages));
-    const approvalCanvases = renderApprovalCanvases(data, images, totalPages);
+    const approvalCanvases = renderApprovalCanvases(generatedData, images, totalPages);
     const allCanvases = [...approvalCanvases, ...appendixCanvases];
 
     const pdfDoc = await PDFDocument.create();
@@ -1585,7 +1598,7 @@
       page.drawImage(png, { x: 0, y: 0, width: A4[0], height: A4[1] });
     }
 
-    pdfDoc.setTitle(`New Outlet Opening Approval - ${data.monthName} ${data.year}`);
+    pdfDoc.setTitle(`New Outlet Opening Approval - ${generatedData.monthName} ${generatedData.year}`);
     pdfDoc.setSubject("Operations incentive disbursement approval with Appendix A and Appendix B");
     pdfDoc.setCreator("New outlet opening approval format dashboard");
     return pdfDoc.save();
@@ -1609,6 +1622,8 @@
     setChip("Generating PDF", "warn");
     setStatus("Building the approval note, both appendices and the signed approval page…");
     try {
+      state.data = { ...state.data, approval: approvalDateParts() };
+      updateSummary(state.data);
       const bytes = await buildPdf(state.data);
       const filename = `New_Outlet_Opening_Approval_${state.data.monthName}_${state.data.year}.pdf`;
       downloadBytes(bytes, filename);
