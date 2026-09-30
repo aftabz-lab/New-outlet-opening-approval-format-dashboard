@@ -372,14 +372,14 @@
     };
     const incentiveIndices = allIndices(detailHeader, "Incentive Amount");
     const quantityIndices = allIndices(detailHeader, "Outlet Quantity");
-    if (incentiveIndices.length < 4 || quantityIndices.length < 3) {
+    if (incentiveIndices.length < 3 || quantityIndices.length < 3) {
       throw new Error("The outlet detail sheet does not contain the expected incentive columns.");
     }
     Object.assign(detailIndices, {
       teamAmount: incentiveIndices[0],
       zonalAmount: incentiveIndices[1],
       rhoAmount: incentiveIndices[2],
-      assistantAmount: incentiveIndices[3],
+      assistantAmount: incentiveIndices.length > 3 ? incentiveIndices[3] : -1,
       rhoQuantity: quantityIndices[2],
     });
 
@@ -402,7 +402,9 @@
         rhoName: asText(row.values[detailIndices.rhoName]),
         rhoQuantity: asNumber(row.values[detailIndices.rhoQuantity]),
         rhoAmount: asNumber(row.values[detailIndices.rhoAmount]),
-        assistantAmount: asNumber(row.values[detailIndices.assistantAmount]),
+        assistantAmount: detailIndices.assistantAmount >= 0
+          ? asNumber(row.values[detailIndices.assistantAmount])
+          : 0,
       });
     }
 
