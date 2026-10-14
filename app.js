@@ -1209,6 +1209,131 @@
     return tableTop + rowHeight * 3;
   }
 
+  function drawCanvasIncentivePolicy(context) {
+    fillWhite(context, 35.2, 286, 525, 440);
+    const size = 11;
+    const lineHeight = 13.45;
+    let top = 291.5;
+    const paragraph = (segments, x = 36.1, maxWidth = 523) => {
+      top = drawRichCanvas(context, segments, { x, top, maxWidth, size, lineHeight });
+    };
+    const sections = [
+      {
+        title: "1. Outlet Team Member / OM:",
+        description: "The Outlet Team Member incentive is based on the number of outlets inaugurated by the team in a month.",
+        amount: "2,000 BDT",
+        minimum: "minimum 1 outlet",
+        tail: " in a month.",
+        multiplier: "(Incentive multiplied accordingly for more than 1 outlet inaugurated in the same month.)",
+      },
+      {
+        title: "2. Zonal Manager Operations:",
+        description: "Zonal Managers are incentivized based on the number of outlets inaugurated in their respective zones.",
+        amount: "5,000 BDT",
+        minimum: "minimum 1 outlet",
+        tail: " in a month.",
+        multiplier: "(Incentive multiplied accordingly for more than 1 outlet inaugurated in the same month.)",
+      },
+      {
+        title: "3. Regional Head of Operations (RHO):",
+        description: "The incentive structure for the Regional Head of Operations is based on the number of outlets inaugurated each month.",
+        amount: "2,000 BDT",
+        minimum: "minimum 1 outlet",
+        tail: " in a month.",
+        multiplier: "(Incentive multiplied accordingly for more than 1 outlet inaugurated in the same month.)",
+      },
+      {
+        title: "4. Assistant Director-Operations:",
+        description: "The incentive structure for the Assistant Director-Operations is based on the number of outlets inaugurated by the Operation Department in each month.",
+        amount: "2,000 BDT",
+        minimum: "minimum 10 outlets",
+        tail: " from Operation Department in a month.",
+        multiplier: "(Incentive multiplied accordingly for more than 10 outlets inaugurated in the same month.)",
+      },
+    ];
+    sections.forEach((section) => {
+      drawCanvasText(context, section.title, 36.1, top, size, true);
+      top += 18;
+      paragraph([{ text: section.description }]);
+      top += 4;
+      drawCanvasText(context, "•", 53, top, size);
+      paragraph([
+        { text: section.amount, bold: true },
+        { text: " per outlet for inaugurating " },
+        { text: section.minimum, bold: true },
+        { text: section.tail },
+      ], 72, 487);
+      top += 4;
+      paragraph([{ text: section.multiplier }], 72, 487);
+      top += 8;
+    });
+    drawCanvasText(context, "NB :", 36.1, top, size, true);
+    context.save();
+    context.strokeStyle = "#000000";
+    context.lineWidth = 0.6;
+    context.beginPath();
+    context.moveTo(36.1, top + 12);
+    context.lineTo(36.1 + canvasTextWidth(context, "NB :", size, true), top + 12);
+    context.stroke();
+    context.restore();
+    top += 18;
+    const notes = [
+      "If any Regional Head of Operations (RHO) is responsible for both inaugurating an outlet & managing the investor, only then he will get full amount of incentive (2,000 BDT) per outlet.",
+      "If any Regional Head of Operations (RHO) is responsible only for inaugurating an outlet & an expansion team member is responsible only for managing the investor for the same outlet, then each (Regional Head of Operations (RHO) & expansion team member) will get 1,000 BDT per outlet.",
+    ];
+    notes.forEach((note) => {
+      context.save();
+      context.fillStyle = "#000000";
+      context.beginPath();
+      context.moveTo(54, top + 2);
+      context.lineTo(60, top + 6);
+      context.lineTo(54, top + 10);
+      context.lineTo(56, top + 6);
+      context.closePath();
+      context.fill();
+      context.restore();
+      paragraph([{ text: note }], 72, 487);
+      top += 4;
+    });
+    return top;
+  }
+
+  function drawCanvasApprovalSignatories(context) {
+    fillWhite(context, 35.2, 208, 525, 390);
+    const width = 113;
+    const signingSpace = 100;
+    const columnX = (index) => 42 + index * 131.5;
+    const drawPerson = (person, column, top) => {
+      const x = columnX(column);
+      drawCanvasText(context, `${person.role}:`, x, top, 11, true, "center", width);
+      context.save();
+      context.strokeStyle = "#000000";
+      context.lineWidth = 0.8;
+      context.beginPath();
+      context.moveTo(x, top + signingSpace);
+      context.lineTo(x + width, top + signingSpace);
+      context.stroke();
+      context.restore();
+      drawCanvasText(context, person.name, x, top + signingSpace + 9, 11, true, "center", width);
+      const lines = canvasWrappedLines(context, person.designation, 10.5, width, true, 4);
+      lines.forEach((line, index) => {
+        drawCanvasText(context, line, x, top + signingSpace + 26 + index * 16, 10.5, true, "center", width);
+      });
+    };
+    [
+      { role: "Prepared by", name: "Md. Aftab Ul Islam", designation: "Sr. Executive,\nOperations" },
+      { role: "Checked by", name: "Saiful Alam Rasel", designation: "Assistant Director,\nOperations" },
+      { role: "Reviewed by", name: "Rumana Jahan", designation: "Head of HR" },
+      { role: "Reviewed by", name: "Tamal Paul", designation: "Director - Business Planning & Investor Relations" },
+    ].forEach((person, index) => drawPerson(person, index, 214.5));
+    [
+      { role: "Recommended by", name: "Abu Naser", designation: "Director, Operations" },
+      { role: "Endorsed by", name: "Md Shofiqul Islam", designation: "Head of Finance" },
+      { role: "Approved by", name: "Sabbir Hasan Nasir", designation: "Managing Director\nACILL" },
+    ].forEach((person, index) => drawPerson(person, index, 423));
+    return 214.5 + signingSpace;
+  }
+
   function renderApprovalCanvases(data, images, totalPages) {
     const amount = `${formatInteger(data.total)}/=`;
     const monthYear = `${data.monthName} ${data.year}`;
@@ -1233,6 +1358,8 @@
       { text: " have been reviewed, verified, and evaluated as per the approved guidelines and supporting details enclosed in Appendix-A & B." },
     ], { x: 36.1, top: 181.4, maxWidth: 523, size: 11, lineHeight: 13.45 });
 
+    drawCanvasIncentivePolicy(first.context);
+
     fillWhite(first.context, 35.2, 729.5, 525, 33.1);
     drawRichCanvas(first.context, [
       { text: "The approved incentive amounts shall be disbursed among the eligible employees listed in Appendix-A and B including the associate team for " },
@@ -1256,12 +1383,14 @@
       { text: " is hereby recommended for incentive disbursement as per the details stated above and the attached appendices." },
     ], { x: 36.1, top: recommendationTop, maxWidth: 523, size: 11, lineHeight: 13.45 });
 
+    const signatureBaselineTop = drawCanvasApprovalSignatories(second.context);
+
     const aftabWidth = 69;
     const aftabHeight = aftabWidth * images.aftab.height / images.aftab.width;
-    second.context.drawImage(images.aftab, 67, 842 - 572.5 - aftabHeight, aftabWidth, aftabHeight);
+    second.context.drawImage(images.aftab, 67, signatureBaselineTop - 2 - aftabHeight, aftabWidth, aftabHeight);
     const saifulWidth = 72;
     const saifulHeight = saifulWidth * images.saiful.height / images.saiful.width;
-    second.context.drawImage(images.saiful, 194, 842 - 568.2 - saifulHeight, saifulWidth, saifulHeight);
+    second.context.drawImage(images.saiful, 194, signatureBaselineTop - 2 - saifulHeight, saifulWidth, saifulHeight);
     drawCanvasFooter(second.context, 2, totalPages);
 
     return [first, second];
