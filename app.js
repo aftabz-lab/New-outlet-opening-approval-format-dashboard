@@ -1302,9 +1302,9 @@
     fillWhite(context, 35.2, 208, 525, 390);
     const width = 113;
     const signingSpace = 100;
-    const columnX = (index) => 42 + index * 131.5;
-    const drawPerson = (person, column, top) => {
-      const x = columnX(column);
+    const columnX = (index, left = 42) => left + index * 131.5;
+    const drawPerson = (person, column, top, left = 42) => {
+      const x = columnX(column, left);
       drawCanvasText(context, `${person.role}:`, x, top, 11, true, "center", width);
       context.save();
       context.strokeStyle = "#000000";
@@ -1326,11 +1326,12 @@
       { role: "Reviewed by", name: "Rumana Jahan", designation: "Head of HR" },
       { role: "Reviewed by", name: "Tamal Paul", designation: "Director - Business Planning & Investor Relations" },
     ].forEach((person, index) => drawPerson(person, index, 214.5));
+    const lowerRowLeft = (A4[0] - (width * 3 + 18.5 * 2)) / 2;
     [
       { role: "Recommended by", name: "Abu Naser", designation: "Director, Operations" },
       { role: "Endorsed by", name: "Md Shofiqul Islam", designation: "Head of Finance" },
       { role: "Approved by", name: "Sabbir Hasan Nasir", designation: "Managing Director\nACILL" },
-    ].forEach((person, index) => drawPerson(person, index, 423));
+    ].forEach((person, index) => drawPerson(person, index, 423, lowerRowLeft));
     return 214.5 + signingSpace;
   }
 
