@@ -306,7 +306,7 @@
   }
 
   const ANNEX_WIDTHS = [22, 110, 53, 120, 64, 55, 36, 64];
-  const SCORE = value => value === null ? "" : new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
+  const SCORE = value => value === null ? "" : new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
   function planAnnexure(data, context) {
     const pages = [[]]; let y = 191, serial = 0;
     const add = (item, height, following = 0) => {
@@ -315,7 +315,8 @@
     };
     for (const group of data.groups) {
       group.records.forEach((record, index) => {
-        const values = [++serial, group.criteria, record.id, record.name, record.designation, record.department, SCORE(record.score), money(record.amount)];
+        const designation = text(record.designation) || group.criteria.replace(/\bBest\b/gi, "").replace(/\s+/g, " ").trim();
+        const values = [++serial, group.criteria, record.id, record.name, designation, record.department, SCORE(record.score), money(record.amount)];
         const count = Math.max(...values.map((value, column) => wrapped(context, value, ANNEX_WIDTHS[column] - 4.8, 7.4).length));
         const height = Math.max(13.4, count * 8.8 + 4.2);
         add({ type: "record", values, record }, height, index === group.records.length - 1 ? 16 : 0);
