@@ -6,6 +6,19 @@
   font-display: swap;
 }
 
+@font-face { font-family: "AwardSerif"; src: url("assets/AwardSerif-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "AwardSerif"; src: url("assets/AwardSerif-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+@font-face { font-family: "AwardSans"; src: url("assets/AwardSans-Regular.ttf") format("truetype"); font-weight: 400; font-display: block; }
+@font-face { font-family: "AwardSans"; src: url("assets/AwardSans-Bold.ttf") format("truetype"); font-weight: 700; font-display: block; }
+
+[hidden] { display: none !important; }
+.approval-format-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.approval-format-buttons .btn { white-space: normal; text-align: center; }
+#openingWorkflow > .intro-copy { margin: -10px 0 22px; }
+.employee-period-field { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 18px 0; }
+.employee-period-field label { font-size: 13px; font-weight: 600; }
+.employee-period-field input { font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--ink); }
+
 @font-face {
   font-family: "ApprovalSans";
   src: url("assets/ApprovalSans-Bold.otf") format("opentype");

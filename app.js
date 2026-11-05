@@ -70,6 +70,7 @@
 
   function setBusy(busy) {
     state.busy = busy;
+    document.querySelectorAll("[data-approval-mode]").forEach((button) => { button.disabled = busy; });
     elements.selectFileButton.disabled = busy;
     elements.fileInput.disabled = busy;
     elements.generateButton.disabled = busy || !state.valid;
@@ -1302,8 +1303,9 @@
     fillWhite(context, 35.2, 208, 525, 390);
     const width = 113;
     const signingSpace = 100;
-    const columnX = (index, left = 42) => left + index * 131.5;
-    const drawPerson = (person, column, top, left = 42) => {
+    const rowLeft = (A4[0] - (width * 3 + 18.5 * 2)) / 2;
+    const columnX = (index, left = rowLeft) => left + index * 131.5;
+    const drawPerson = (person, column, top, left = rowLeft) => {
       const x = columnX(column, left);
       drawCanvasText(context, `${person.role}:`, x, top, 11, true, "center", width);
       context.save();
@@ -1324,15 +1326,13 @@
       { role: "Prepared by", name: "Md. Aftab Ul Islam", designation: "Sr. Executive,\nOperations" },
       { role: "Checked by", name: "Saiful Alam Rasel", designation: "Assistant Director,\nOperations" },
       { role: "Reviewed by", name: "Rumana Jahan", designation: "Head of HR" },
-      { role: "Reviewed by", name: "Tamal Paul", designation: "Director - Business Planning & Investor Relations" },
     ].forEach((person, index) => drawPerson(person, index, 214.5));
-    const lowerRowLeft = (A4[0] - (width * 3 + 18.5 * 2)) / 2;
     [
       { role: "Recommended by", name: "Abu Naser", designation: "Director, Operations" },
       { role: "Endorsed by", name: "Md Shofiqul Islam", designation: "Head of Finance" },
       { role: "Approved by", name: "Sabbir Hasan Nasir", designation: "Managing Director\nACILL" },
-    ].forEach((person, index) => drawPerson(person, index, 423, lowerRowLeft));
-    return 214.5 + signingSpace;
+    ].forEach((person, index) => drawPerson(person, index, 423));
+    return { baselineTop: 214.5 + signingSpace, firstX: columnX(0), secondX: columnX(1), width };
   }
 
   function renderApprovalCanvases(data, images, totalPages) {
@@ -1384,14 +1384,15 @@
       { text: " is hereby recommended for incentive disbursement as per the details stated above and the attached appendices." },
     ], { x: 36.1, top: recommendationTop, maxWidth: 523, size: 11, lineHeight: 13.45 });
 
-    const signatureBaselineTop = drawCanvasApprovalSignatories(second.context);
+    const signatureLayout = drawCanvasApprovalSignatories(second.context);
+    const signatureBaselineTop = signatureLayout.baselineTop;
 
     const aftabWidth = 69;
     const aftabHeight = aftabWidth * images.aftab.height / images.aftab.width;
-    second.context.drawImage(images.aftab, 67, signatureBaselineTop - 2 - aftabHeight, aftabWidth, aftabHeight);
+    second.context.drawImage(images.aftab, signatureLayout.firstX + (signatureLayout.width - aftabWidth) / 2, signatureBaselineTop - 2 - aftabHeight, aftabWidth, aftabHeight);
     const saifulWidth = 72;
     const saifulHeight = saifulWidth * images.saiful.height / images.saiful.width;
-    second.context.drawImage(images.saiful, 194, signatureBaselineTop - 2 - saifulHeight, saifulWidth, saifulHeight);
+    second.context.drawImage(images.saiful, signatureLayout.secondX + (signatureLayout.width - saifulWidth) / 2, signatureBaselineTop - 2 - saifulHeight, saifulWidth, saifulHeight);
     drawCanvasFooter(second.context, 2, totalPages);
 
     return [first, second];
@@ -1846,5 +1847,6 @@
     parseWorkbookFile,
     extractDashboardData,
     buildPdf,
+    pdfTools: Object.freeze({ createPdfCanvas, canvasPngBytes, bytesToCanvasImage, assetBytes }),
   };
 })();

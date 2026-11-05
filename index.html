@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <meta name="description" content="Generate the monthly new outlet opening approval PDF from the Operations incentive workbook.">
-  <title>New outlet opening approval format dashboard</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="Generate New Outlet Opening and Best Employee Award approval PDFs from monthly Excel workbooks.">
+  <title>Approval Format Dashboard</title>
+  <link rel="stylesheet" href="styles.css?v=approval-formats-20261105">
 </head>
 <body>
   <header class="topbar">
@@ -25,10 +25,16 @@
 
   <main class="shell">
     <section class="intro" aria-labelledby="pageTitle">
-      <p class="section-label">New outlet opening</p>
-      <h1 id="pageTitle">New outlet opening approval format dashboard</h1>
-      <p class="intro-copy">Select the monthly incentive Excel file. The dashboard will read the reporting month, totals, Appendix A and Appendix B, then download the completed approval PDF with the default Aftab and Saiful signatures.</p>
+      <p class="section-label">Operations approvals</p>
+      <h1 id="pageTitle">Approval Format Dashboard</h1>
+      <div class="approval-format-buttons" role="group" aria-label="Approval format">
+        <button class="btn btn-primary" type="button" data-approval-mode="opening" aria-pressed="true">New outlet opening approval format dashboard</button>
+        <button class="btn" type="button" data-approval-mode="employee" aria-pressed="false">Best Employee Award Approval format dashboard</button>
+      </div>
     </section>
+
+    <div id="openingWorkflow">
+      <p class="intro-copy">Select the monthly incentive Excel file. The dashboard will read the reporting month, totals, Appendix A and Appendix B, then download the completed approval PDF with the default Aftab and Saiful signatures.</p>
 
     <section class="panel workflow-panel" aria-labelledby="workflowTitle">
       <div class="panel-head">
@@ -97,8 +103,53 @@
         </div>
       </div>
     </section>
+    </div>
 
-    <section class="panel details-panel" aria-labelledby="includedTitle">
+    <section class="panel workflow-panel" id="employeeWorkflow" aria-labelledby="employeeWorkflowTitle" hidden>
+      <div class="panel-head">
+        <div>
+          <h2 id="employeeWorkflowTitle">Best Employee Award Approval format dashboard</h2>
+          <p>Select the monthly Best Employee Award workbook. Processing stays inside this browser.</p>
+        </div>
+        <span class="chip chip-idle" id="employeeFileChip">No file selected</span>
+      </div>
+      <div class="panel-body">
+        <div class="upload-grid">
+          <div class="drop-zone" id="employeeDropZone">
+            <input id="employeeFileInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <div class="upload-icon" aria-hidden="true">↑</div>
+            <h3>Monthly Best Employee Award source</h3>
+            <p>Select the workbook containing the criteria, employee details, scores and final amounts.</p>
+            <button class="btn" id="employeeSelectFileButton" type="button">Select File from Device</button>
+            <p class="file-name" id="employeeFileName">No Excel file selected</p>
+          </div>
+          <div class="instructions">
+            <ol>
+              <li><span>1</span><div><strong>Select the workbook</strong><small>The filename and column order may change.</small></div></li>
+              <li><span>2</span><div><strong>Confirm the reporting month</strong><small>Check the detected month before generating.</small></div></li>
+              <li><span>3</span><div><strong>Generate the PDF</strong><small>Approval note, annexure and criteria subtotals download together.</small></div></li>
+            </ol>
+          </div>
+        </div>
+        <div class="status" id="employeeStatus" role="status" aria-live="polite">Select an Excel file to begin.</div>
+        <div class="employee-period-field">
+          <label for="employeePeriod">Reporting month</label>
+          <input type="month" id="employeePeriod">
+        </div>
+        <div class="summary-grid" aria-live="polite">
+          <article class="kpi"><span>Reporting month</span><strong id="employeeSummaryMonth">—</strong><small>Used throughout the approval PDF</small></article>
+          <article class="kpi"><span>Recipients</span><strong id="employeeSummaryRecipients">—</strong><small>All uploaded recipient rows</small></article>
+          <article class="kpi"><span>Criteria</span><strong id="employeeSummaryCriteria">—</strong><small>A subtotal follows each criteria group</small></article>
+          <article class="kpi"><span>Total incentive</span><strong id="employeeSummaryTotal">—</strong><small>Sum of uploaded final amounts</small></article>
+        </div>
+        <div class="action-row">
+          <div><p class="action-title">Approval date</p><p class="action-value" id="employeeApprovalDate">Derived after file selection</p></div>
+          <button class="btn btn-primary" id="employeeGenerateButton" type="button" disabled>Best Employee Award Approval Generate</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel details-panel" id="openingIncluded" aria-labelledby="includedTitle">
       <div class="panel-head">
         <div>
           <h2 id="includedTitle">Included in the PDF</h2>
@@ -121,6 +172,7 @@
 
   <script src="assets/jszip.min.js"></script>
   <script src="assets/pdf-lib.min.js"></script>
-  <script src="app.js?v=approval-signatory-center-v3-20261014"></script>
+  <script src="app.js?v=approval-formats-20261105"></script>
+  <script src="best-employee.js?v=approval-formats-20261105"></script>
 </body>
 </html>
