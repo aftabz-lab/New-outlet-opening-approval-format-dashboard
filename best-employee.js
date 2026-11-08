@@ -264,7 +264,7 @@
     paragraph(context, [{ text: `To ensure transparency & fairness there are there are some KPI’s has been set for this Award program which attached in annexure page - 3 to ${totalPages}.` }], { y });
   }
 
-  function employeeSignatories(context) {
+  function employeeSignatories(context, signatures) {
     white(context, 35, 405, 527, 377);
     const width = 113;
     const draw = (person, x, y, gap) => {
@@ -277,7 +277,17 @@
       ["Prepared by", "Md. Aftab Ul Islam", "Sr. Executive,\nOperations"], ["Checked by", "Saiful Alam Rasel", "Assistant Director,\nOperations"],
       ["Reviewed by", "Rumana Jahan", "Head of HR"], ["Recommended by", "Abu Naser", "Director, Operations"],
     ];
-    first.forEach((person, i) => draw(person, (A4[0] - 518) / 2 + 135 * i, 426, 55));
+    const firstRowX = (A4[0] - 518) / 2, firstRowTop = 426, columnStep = 135, signingGap = 55;
+    first.forEach((person, i) => draw(person, firstRowX + columnStep * i, firstRowTop, signingGap));
+
+    // Skip the transparent margins of the original Feasibility PNGs and keep their proportions.
+    const signingLine = firstRowTop + signingGap;
+    const drawInk = (image, source, x, inkWidth, bottom) => {
+      const inkHeight = inkWidth * source[3] / source[2];
+      context.drawImage(image, ...source, x, bottom - inkHeight, inkWidth, inkHeight);
+    };
+    drawInk(signatures.aftab, [398, 325, 2176, 745], firstRowX + 15.3, 109, signingLine - 9);
+    drawInk(signatures.saiful, [1, 0, 174, 112], firstRowX + columnStep + (width - 94) / 2, 94, signingLine);
     const second = [
       ["Viewed by", "Tamal Paul", "Director - Business Planning & Investor Relations"],
       ["Endorsed by", "Md Shofiqul Islam", "Head of Finance"],
@@ -301,7 +311,7 @@
     paragraph(second.context, [{ text: "The approved incentive amounts shall be disbursed among the eligible employees listed in Annexure including the associate team for" }, { text: ` ${MONTHS[period.month]} -${period.year}`, bold: true }, { text: ", through name-wise Bank/MFS transfers. This incentive disbursement is a recognition of the commendable efforts, dedication, and operational commitment demonstrated by the teams in expanding Shwapno’s retail network during the stated period despite challenging conditions. Management sincerely appreciates their valuable contribution and encourages continued performance excellence in the upcoming quarters." }], { y: 256 });
     white(second.context, 35, 349, 527, 40);
     paragraph(second.context, [{ text: "In view of the above," }, { text: ` approval for Incentive Disbursement amount of ${money(data.total)}/= BDT`, bold: true }, { text: " is hereby recommended as per the details stated above and the attached annexure." }], { y: 352.8 });
-    employeeSignatories(second.context); footer(second.context, 2, totalPages);
+    employeeSignatories(second.context, images); footer(second.context, 2, totalPages);
     return [first, second];
   }
 
@@ -354,8 +364,18 @@
   async function buildPdf(data, options = {}) {
     const period = periodParts(options.period || data.period), approval = today(options.now);
     await ensureFonts();
-    const [firstBytes, secondBytes] = await Promise.all([tools.assetBytes("assets/best-employee-template-page-1.png"), tools.assetBytes("assets/best-employee-template-page-2.png")]);
-    const images = { first: await tools.bytesToCanvasImage(firstBytes), second: await tools.bytesToCanvasImage(secondBytes) };
+    const [firstBytes, secondBytes, aftabBytes, saifulBytes] = await Promise.all([
+      tools.assetBytes("assets/best-employee-template-page-1.png"),
+      tools.assetBytes("assets/best-employee-template-page-2.png"),
+      tools.assetBytes("assets/best-employee-aftab-signature.png"),
+      tools.assetBytes("assets/best-employee-saiful-signature.png"),
+    ]);
+    const images = {
+      first: await tools.bytesToCanvasImage(firstBytes),
+      second: await tools.bytesToCanvasImage(secondBytes),
+      aftab: await tools.bytesToCanvasImage(aftabBytes),
+      saiful: await tools.bytesToCanvasImage(saifulBytes),
+    };
     const plan = planAnnexure(data, tools.createPdfCanvas().context), total = plan.length + 2;
     const pages = [...renderApproval(data, images, period, approval, total), ...renderAnnexure(plan, images.first, approval, period, total)];
     const pdf = await window.PDFLib.PDFDocument.create();
