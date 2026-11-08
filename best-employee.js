@@ -42,6 +42,16 @@
     return result;
   }
 
+  function payoutColumns(headerRows) {
+    for (const { values } of headerRows) {
+      const start = values.findIndex(value => /^payout calculation\b/.test(norm(value)));
+      if (start < 0) continue;
+      const next = values.findIndex((value, column) => column > start && text(value));
+      return { start, end: next < 0 ? Infinity : next };
+    }
+    return null;
+  }
+
   function locateHeaders(workbook) {
     const candidates = [];
     for (const sheet of workbook.sheets) {
@@ -49,11 +59,15 @@
       for (let start = 0; start < limit; start++) {
         for (let depth = 1; depth <= 4 && start + depth <= sheet.rows.length; depth++) {
           const windowRows = sheet.rows.slice(start, start + depth);
+          // Compiled workbooks can move the payout block when KPI columns are added.
+          const payout = payoutColumns(windowRows);
           const indices = {}, locations = {};
           for (const [key, names] of Object.entries(ALIASES)) {
             const allowed = new Set(names.map(headerKey));
+            const payoutField = key === "score" || key === "amount";
             for (let offset = 0; offset < windowRows.length; offset++) {
               windowRows[offset].values.forEach((value, column) => {
+                if (payout && payoutField && (column < payout.start || column >= payout.end)) return;
                 if (allowed.has(headerKey(value))) { indices[key] = column; locations[key] = start + offset; }
               });
             }
@@ -316,7 +330,7 @@
   }
 
   const ANNEX_WIDTHS = [22, 110, 53, 120, 64, 55, 36, 64];
-  const SCORE = value => value === null ? "" : new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+  const SCORE = value => new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value ?? 100);
   function planAnnexure(data, context) {
     const pages = [[]]; let y = 191, serial = 0;
     const add = (item, height, following = 0) => {
